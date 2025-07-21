@@ -9,14 +9,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'vendor') {
 $fullname = $_SESSION['fullname'];
 
 // Example data (replace with DB queries)
-$productCount = 12;
-$reviewCount = 5;
+$productCount = 4;
+$reviewCount = 4;
 $salesData = [
-  'Burger' => 120,
-  'Pizza' => 90,
-  'Fries' => 60,
-  'Drinks' => 75,
-  'Salad' => 30
+    ['id' => 1, 'name' => 'Chicken Adobo', 'price' => 75.00],
+    ['id' => 2, 'name' => 'Beef Tapa', 'price' => 80.00],
+    ['id' => 3, 'name' => 'Tocino Meal', 'price' => 90.00],
+    ['id' => 4, 'name' => 'Fried Bangus', 'price' => 85.00],
 ];
 ?>
 
@@ -126,8 +125,8 @@ $salesData = [
     }
 
     .emoji {
-    font-size: 100px;
-    margin-top: 15px;
+      font-size: 100px;
+      margin-top: 15px;
     }
 
     @media (max-width: 1000px) {
@@ -156,27 +155,27 @@ $salesData = [
 <div class="content">
   <h2>Vendor Dashboard</h2>
 
-<div class="dashboard-grid">
-  <div class="card">
-    <h3>Total Products</h3>
-    <p><?php echo $productCount; ?></p>
-    <div class="emoji">🍽️</div>
-  </div>
+  <div class="dashboard-grid">
+    <div class="card">
+      <h3>Total Products</h3>
+      <p><?php echo $productCount; ?></p>
+      <div class="emoji">🍽️</div>
+    </div>
 
-  <div class="card">
-    <h3>Total Reviews</h3>
-    <p><?php echo $reviewCount; ?></p>
-    <div class="emoji">⭐</div>
-  </div>
+    <div class="card">
+      <h3>Total Reviews</h3>
+      <p><?php echo $reviewCount; ?></p>
+      <div class="emoji">⭐</div>
+    </div>
 
-  <div class="card">
-    <h3>Sales Chart</h3>
-    <div class="chart-container">
-      <canvas id="salesChart"></canvas>
+    <div class="card">
+      <h3>Sales Chart</h3>
+      <div class="chart-container">
+        <canvas id="salesChart"></canvas>
+      </div>
     </div>
   </div>
 </div>
-
 
 <script>
   function toggleSidebar() {
@@ -196,10 +195,10 @@ $salesData = [
   new Chart(ctx, {
     type: 'pie',
     data: {
-      labels: <?php echo json_encode(array_keys($salesData)); ?>,
+      labels: <?php echo json_encode(array_column($salesData, 'name')); ?>,
       datasets: [{
-        data: <?php echo json_encode(array_values($salesData)); ?>,
-        backgroundColor: ['#e67e22', '#d35400', '#f39c12', '#f1c40f', '#e74c3c'],
+        data: <?php echo json_encode(array_column($salesData, 'price')); ?>,
+        backgroundColor: ['#e67e22', '#d35400', '#f39c12', '#f1c40f'],
         borderColor: '#fff',
         borderWidth: 2
       }]

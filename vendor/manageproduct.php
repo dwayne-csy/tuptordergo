@@ -9,12 +9,12 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'vendor') {
 
 $fullname = $_SESSION['fullname'] ?? 'Vendor';
 
-// Fake product list (category removed)
+// Stall 1: Rice Meals only
 $products = [
     ['id' => 1, 'name' => 'Chicken Adobo', 'price' => 75.00],
-    ['id' => 2, 'name' => 'Carbonara', 'price' => 90.00],
-    ['id' => 3, 'name' => 'Ham & Cheese Sandwich', 'price' => 55.00],
-    ['id' => 4, 'name' => 'Ube Cheesecake', 'price' => 65.00],
+    ['id' => 2, 'name' => 'Beef Tapa', 'price' => 80.00],
+    ['id' => 3, 'name' => 'Tocino Meal', 'price' => 90.00],
+    ['id' => 4, 'name' => 'Fried Bangus', 'price' => 85.00],
 ];
 ?>
 
@@ -23,7 +23,7 @@ $products = [
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Manage Products - TUPT OrderGo</title>
+  <title>Manage Products - Stall 1 (Rice Meals)</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
