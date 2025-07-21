@@ -146,9 +146,9 @@ $salesData = [
 </div>
 
 <div class="sidebar" id="sidebar">
-  <a href="manageproducts.php">Manage Products</a>
-  <a href="manageorders.php">Manage Orders</a>
-  <a href="reviews.php">Reviews</a>
+  <a href="manageproduct.php">Manage Products</a>
+  <a href="manageorder.php">Manage Orders</a>
+  <a href="managereviews.php">Manage Reviews</a>
   <a href="announcement.php">Announcement</a>
   <a href="../logout.php">Logout</a>
 </div>
