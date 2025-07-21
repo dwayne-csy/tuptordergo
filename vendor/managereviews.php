@@ -18,74 +18,97 @@ $products = [
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Manage Reviews - Stall 1</title>
-  <link rel="stylesheet" href="../assets/style.css">
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f2f2f2;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #fdfdfd;
       margin: 0;
-    }
-    header {
-      background: #004080;
-      padding: 15px;
-      color: #fff;
-      text-align: center;
-    }
-    .container {
-      margin: 20px auto;
-      max-width: 900px;
-      background: #fff;
       padding: 20px;
-      border-radius: 10px;
     }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #e67e22;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
     h2 {
       text-align: center;
+      color: #333;
       margin-bottom: 25px;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 15px;
+      background-color: #fff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin-bottom: 40px;
     }
-    table, th, td {
+
+    th, td {
+      padding: 15px;
+      text-align: center;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background-color: #e67e22;
+      color: #fff;
+    }
+
+    tr:hover {
+      background-color: #f9f9f9;
+    }
+
+    select {
+      padding: 6px;
+      border-radius: 5px;
       border: 1px solid #ccc;
     }
-    th, td {
-      padding: 12px;
-      text-align: left;
+
+    .back-button {
+      position: fixed;
+      top: 20px;
+      left: 20px;
     }
-    th {
-      background: #e6f2ff;
-    }
-    select {
-      padding: 5px;
-    }
-    .back-btn {
-      margin-top: 15px;
-      display: inline-block;
-      background: #004080;
-      color: #fff;
+
+    .back-button button {
       padding: 10px 16px;
-      border-radius: 6px;
-      text-decoration: none;
+      background-color: #e67e22;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
     }
-    .back-btn:hover {
-      background: #003366;
+
+    .back-button button:hover {
+      background-color: #d35400;
     }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>Manage Reviews</h1>
-</header>
-
-
+<!-- Back Button -->
+<div class="back-button">
+  <form action="dashboard.php" method="get">
+    <button type="submit">← Back</button>
+  </form>
+</div>
 
 <div class="container">
+  <h1>Manage Reviews</h1>
   <h2>Customer Feedback</h2>
+
   <table>
     <thead>
       <tr>
@@ -147,8 +170,6 @@ $products = [
       </tr>
     </tbody>
   </table>
-
-  <a href="dashboard.php" class="back-btn">← Back to Dashboard</a>
 </div>
 
 </body>
