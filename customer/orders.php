@@ -9,20 +9,21 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
 
 $fullname = $_SESSION['fullname'] ?? 'John Doe';
 
+// Updated stall names
 $stalls = [
-    ['Stall 1', 'food1'],
-    ['Stall 2', 'food2'],
-    ['Stall 3', 'food3'],
-    ['Stall 4', 'food4'],
-    ['Stall 5', 'food5'],
-    ['Stall 6', 'food6'],
-    ['Stall 7', 'food7'],
-    ['Stall 8', 'food8'],
-    ['Stall 9', 'food9'],
-    ['Stall 10', 'food10']
+    ['Rice Meals', 'food1'],
+    ['Noodles & Pasta', 'food2'],
+    ['Snacks & Sweets', 'food3'],
+    ['Beverages', 'food4'],
+    ['Street Foods', 'food5'],
+    ['Sandwiches', 'food6'],
+    ['Desserts', 'food7'],
+    ['Healthy Options', 'food8'],
+    ['Breakfast Meals', 'food9'],
+    ['Combo Deals', 'food10']
 ];
 
-// Fake orders with only the statuses: Preparing, Completed, Cancelled
+// Fake orders
 $fakeOrders = [
     ['stall' => 1, 'item' => 'Chicken Adobo', 'quantity' => 1, 'total' => 75, 'status' => 'Preparing'],
     ['stall' => 2, 'item' => 'Carbonara', 'quantity' => 1, 'total' => 90, 'status' => 'Completed'],
@@ -138,7 +139,7 @@ $fakeOrders = [
       </tr>
       <?php foreach ($fakeOrders as $order): ?>
         <tr>
-          <td><?= $stalls[$order['stall'] - 1][0] ?></td>
+          <td><?= htmlspecialchars($stalls[$order['stall'] - 1][0]) ?></td>
           <td><?= htmlspecialchars($order['item']) ?></td>
           <td><?= $order['quantity'] ?></td>
           <td><?= number_format($order['total'], 2) ?></td>

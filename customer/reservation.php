@@ -11,12 +11,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_id = $_SESSION['user_id'];
     $table_no = $_POST['table_no'];
+    $stall = $_POST['stall'];
+    $food = $_POST['food'];
     $reservation_date = $_POST['reservation_date'];
     $reservation_time = $_POST['reservation_time'];
 
-    $sql = "INSERT INTO reservations (user_id, table_no, reservation_date, reservation_time) VALUES (?, ?, ?, ?)";
+    $sql = "INSERT INTO reservations (user_id, table_no, stall, food, reservation_date, reservation_time) VALUES (?, ?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("iiss", $user_id, $table_no, $reservation_date, $reservation_time);
+    $stmt->bind_param("iissss", $user_id, $table_no, $stall, $food, $reservation_date, $reservation_time);
 
     if ($stmt->execute()) {
         $success = "✅ Reservation successful!";
@@ -53,18 +55,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     .back-button button {
-    padding: 10px 16px;
-    background-color: #e67e22;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
+      padding: 10px 16px;
+      background-color: #e67e22;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
     }
 
     .back-button button:hover {
-    background-color: #d35400;
+      background-color: #d35400;
     }
 
     .reservation-box {
@@ -151,23 +153,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </select>
 
       <label for="stall">Stall:</label>
-      <select name="stall" id="stall" required>
+      <select name="stall" id="stall" required onchange="populateFoods(this.value)">
         <option value="" disabled selected>Select a stall</option>
-        <?php for ($i =  1; $i <=  10; $i++): ?>
-          <option value="Stall <?= $i ?>">Stall <?= $i ?></option>
-        <?php endfor; ?>
+        <option value="Stall 1">Rice Meals</option>
+        <option value="Stall 2">Noodles & Pasta</option>
+        <option value="Stall 3">Snacks & Sweets</option>
+        <option value="Stall 4">Beverages</option>
+        <option value="Stall 5">Street Foods</option>
+        <option value="Stall 6">Sandwiches</option>
+        <option value="Stall 7">Desserts</option>
+        <option value="Stall 8">Healthy Options</option>
+        <option value="Stall 9">Breakfast Meals</option>
+        <option value="Stall 10">Combo Deals</option>
       </select>
 
       <label for="food">Food:</label>
       <select name="food" id="food" required>
         <option value="" disabled selected>Select food</option>
-        <option value="Spaghetti">Spaghetti</option>
-        <option value="Burger">Burger</option>
-        <option value="Siomai Rice">Siomai Rice</option>
-        <option value="Pancit Canton">Pancit Canton</option>
-        <option value="Hotdog with Rice">Hotdog with Rice</option>
-        <option value="Fried Chicken">Fried Chicken</option>
-        <option value="Tocino with Egg">Tocino with Egg</option>
       </select>
 
       <label for="reservation_date">Date:</label>
@@ -179,5 +181,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <button type="submit">Reserve</button>
     </form>
   </div>
+
+  <script>
+    const stallFoods = {
+      "Stall 1": ["Chicken Adobo", "Beef Tapa", "Tocino Meal", "Longganisa Rice Meal", "Fried Bangus"],
+      "Stall 2": ["Spaghetti", "Carbonara", "Pancit Canton"],
+      "Stall 3": ["Banana Cue", "Turon", "Chocolate Cake Slice"],
+      "Stall 4": ["Iced Tea", "Fruit Shake","Bottled Water"],
+      "Stall 5": ["Kwek-Kwek", "Fishball","Isaw"],
+      "Stall 6": ["Ham Sandwich", "Clubhouse Sandwich", "Egg Sandwich"],
+      "Stall 7": ["Leche Flan", "Buko Pandan","Chocolate Cake Slice"],
+      "Stall 8": ["Grilled Chicken Salad", "Veggie Wrap", "Fruit Cup"],
+      "Stall 9": ["Pancake with Egg", "Tapsilog", "Longsilog" ],
+      "Stall 10": ["Chicken + Rice + Drink", "Burger + Fries + Soda", "Pasta + Garlic Bread + Juice"]
+    };
+
+    function populateFoods(stall) {
+      const foodSelect = document.getElementById("food");
+      foodSelect.innerHTML = '<option value="" disabled selected>Select food</option>';
+
+      if (stallFoods[stall]) {
+        stallFoods[stall].forEach(food => {
+          const option = document.createElement("option");
+          option.value = food;
+          option.textContent = food;
+          foodSelect.appendChild(option);
+        });
+      }
+    }
+  </script>
 </body>
 </html>

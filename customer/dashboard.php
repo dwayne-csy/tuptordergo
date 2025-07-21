@@ -144,7 +144,7 @@ $fullname = $_SESSION['fullname'];
     <a href="reservation.php">Reservation</a>
     <a href="reviews.php">Reviews</a>
     <a href="orders.php">Orders</a>
-    <a href="#">Notifications</a>
+    <a href="notification.php">Notifications</a>
     <a href="../logout.php">Logout</a>
   </div>
 
