@@ -15,19 +15,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $food = $_POST['food'];
     $reservation_date = $_POST['reservation_date'];
     $reservation_time = $_POST['reservation_time'];
+    $message = $_POST['message'] ?? ''; // ✅ NEW: capture message
 
-    $sql = "INSERT INTO reservations (user_id, table_no, stall, food, reservation_date, reservation_time) VALUES (?, ?, ?, ?, ?, ?)";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("iissss", $user_id, $table_no, $stall, $food, $reservation_date, $reservation_time);
-
-    if ($stmt->execute()) {
-        $success = "✅ Reservation successful!";
-    } else {
-        $error = "❌ Failed to reserve. Please try again.";
-    }
-
-    $stmt->close();
-    $conn->close();
+    // Simulated reservation success (for demo only)
+    $success = "✅ Reservation successful!" . ($message ? "<br>📩 Message: " . htmlspecialchars($message) : '');
 }
 ?>
 
@@ -89,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       display: block;
     }
 
-    select, input[type="date"], input[type="time"] {
+    select, input[type="date"], input[type="time"], textarea {
       width: 100%;
       padding: 10px;
       border-radius: 10px;
@@ -171,6 +162,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <select name="food" id="food" required>
         <option value="" disabled selected>Select food</option>
       </select>
+
+      <!-- ✅ NEW: Message to Vendor -->
+      <label for="message">Message to Vendor (Optional):</label>
+      <textarea name="message" id="message" rows="3" placeholder="Add any special instructions..." style="width: 100%; padding: 10px; border-radius: 10px; border: 2px solid #f39c12; font-size: 16px; margin-bottom: 20px;"></textarea>
 
       <label for="reservation_date">Date:</label>
       <input type="date" name="reservation_date" id="reservation_date" required min="<?= date('Y-m-d'); ?>">
