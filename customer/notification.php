@@ -1,7 +1,7 @@
 <?php
 session_start();
+include '../config/db.php'; // Connect to your DB
 
-// Simulate a logged-in customer
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     header('Location: ../login.php');
     exit;
@@ -9,33 +9,28 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
 
 $fullname = $_SESSION['fullname'] ?? 'John Doe';
 
-// Define stalls
-$stalls = [
-    ['Rice Meals', 'food1'],
-    ['Noodles & Pasta', 'food2'],
-    ['Snacks & Sweets', 'food3'],
-    ['Beverages', 'food4'],
-    ['Street Foods', 'food5'],
-    ['Sandwiches', 'food6'],
-    ['Desserts', 'food7'],
-    ['Healthy Options', 'food8'],
-    ['Breakfast Meals', 'food9'],
-    ['Combo Deals', 'food10']
-];
+// Fetch all vendor announcements
+$notifications = [];
 
-// Sample fake notifications based on stalls
-$notifications = [
-    "🍛 New item in <strong>Rice Meals</strong>: *Chicken Adobo with Rice*!",
-    "🍝 <strong>Noodles & Pasta</strong> now serves *Shrimp Alfredo Pasta*!",
-    "🍬 Sweet treat alert in <strong>Snacks & Sweets</strong>: *Honey Glazed Donuts*!",
-    "🥤 Try the refreshing *Mango Graham Smoothie* at <strong>Beverages</strong> stall!",
-    "🍢 <strong>Street Foods</strong> added *Fishball & Isaw Combo*!",
-    "🥪 New sandwich in <strong>Sandwiches</strong>: *Clubhouse Triple Stack*!",
-    "🍰 Craving dessert? <strong>Desserts</strong> now has *Ube Cheesecake*!",
-    "🥗 Eat clean! <strong>Healthy Options</strong> just added *Kale & Avocado Bowl*!",
-    "🍳 <strong>Breakfast Meals</strong> now offers *Longganisa with Fried Rice*!",
-    "🍽️ <strong>Combo Deals</strong>: *Spaghetti + Fried Chicken + Drink* for ₱99 only!"
-];
+$sql = "SELECT a.*, u.fullname AS stall_name 
+        FROM announcements a 
+        JOIN users u ON a.vendor_id = u.id 
+        WHERE u.role = 'vendor' 
+        ORDER BY a.id DESC";
+
+$result = $conn->query($sql);
+
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $stall = htmlspecialchars($row['stall_name']);
+        $title = htmlspecialchars($row['title']);
+         $content = htmlspecialchars($row['message'] ?? $row['content'] ?? '');
+        $formatted = "📢 <strong>{$stall}</strong> posted: <em>{$title}</em> — {$content}";
+        $notifications[] = $formatted;
+    }
+}
+
+$conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -109,11 +104,15 @@ $notifications = [
 
   <header>📢 Notifications</header>
   <div class="container">
-    <?php foreach ($notifications as $note): ?>
-      <div class="notification">
-        <?= $note ?>
-      </div>
-    <?php endforeach; ?>
+    <?php if (empty($notifications)): ?>
+      <div class="notification">No announcements yet.</div>
+    <?php else: ?>
+      <?php foreach ($notifications as $note): ?>
+        <div class="notification">
+          <?= $note ?>
+        </div>
+      <?php endforeach; ?>
+    <?php endif; ?>
   </div>
 </body>
 </html>

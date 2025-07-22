@@ -1,152 +1,110 @@
 <?php
 session_start();
+include '../config/db.php';
 
-// Simulate a logged-in customer
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
-    header('Location: ../login.php');
+    header("Location: ../login.php");
     exit;
 }
 
-$fullname = $_SESSION['fullname'] ?? 'John Doe';
+$user_id = $_SESSION['user_id'];
 
-// Updated stall names
-$stalls = [
-    ['Rice Meals', 'food1'],
-    ['Noodles & Pasta', 'food2'],
-    ['Snacks & Sweets', 'food3'],
-    ['Beverages', 'food4'],
-    ['Street Foods', 'food5'],
-    ['Sandwiches', 'food6'],
-    ['Desserts', 'food7'],
-    ['Healthy Options', 'food8'],
-    ['Breakfast Meals', 'food9'],
-    ['Combo Deals', 'food10']
-];
+// Handle order submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $product_id = intval($_POST['product_id']);
+    $quantity = intval($_POST['quantity']);
+    $payment_method = $_POST['payment_method'];
 
-// Fake orders
-$fakeOrders = [
-    ['stall' => 1, 'item' => 'Chicken Adobo', 'quantity' => 1, 'total' => 75, 'status' => 'Preparing'],
-    ['stall' => 2, 'item' => 'Carbonara', 'quantity' => 1, 'total' => 90, 'status' => 'Completed'],
-    ['stall' => 4, 'item' => 'Lemon Iced Tea', 'quantity' => 2, 'total' => 40, 'status' => 'Preparing'],
-    ['stall' => 6, 'item' => 'Ham & Cheese Sandwich', 'quantity' => 1, 'total' => 55, 'status' => 'Completed'],
-    ['stall' => 7, 'item' => 'Chocolate Cake', 'quantity' => 1, 'total' => 65, 'status' => 'Cancelled'],
-    ['stall' => 9, 'item' => 'Tapsilog', 'quantity' => 1, 'total' => 80, 'status' => 'Completed'],
-];
+    // Get vendor_id from the product
+    $stmt = $conn->prepare("SELECT vendor_id FROM products WHERE id = ?");
+    $stmt->bind_param("i", $product_id);
+    $stmt->execute();
+    $stmt->bind_result($vendor_id);
+    $stmt->fetch();
+    $stmt->close();
+
+    if (!$vendor_id) {
+        echo "Invalid product or vendor.";
+        exit;
+    }
+
+    // Insert into orders table
+    $stmt = $conn->prepare("INSERT INTO orders (customer_id, vendor_id, product_id, quantity, payment_method, status) VALUES (?, ?, ?, ?, ?, 'pending')");
+    $stmt->bind_param("iiiis", $user_id, $vendor_id, $product_id, $quantity, $payment_method);
+    
+    if ($stmt->execute()) {
+        $order_id = $stmt->insert_id;
+        $stmt->close();
+
+        // ✅ Redirect with the order_id
+        header("Location: order_success.php?order_id=" . $order_id);
+        exit;
+    } else {
+        echo "Failed to place order.";
+        $stmt->close();
+        exit;
+    }
+}
+
+// If no product_id in URL, show error
+if (!isset($_GET['product_id'])) {
+    echo "No product selected.";
+    exit;
+}
+
+$product_id = intval($_GET['product_id']);
+
+// Get product details
+$stmt = $conn->prepare("
+    SELECT p.id as product_id, p.name as product_name, p.price, u.fullname as vendor_name 
+    FROM products p 
+    JOIN users u ON p.vendor_id = u.id 
+    WHERE p.id = ?
+");
+$stmt->bind_param("i", $product_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$product = $result->fetch_assoc();
+$stmt->close();
+
+if (!$product) {
+    echo "Product not found.";
+    exit;
+}
 ?>
+<!-- HTML form stays unchanged -->
+
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>My Orders - TUPT OrderGo</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #fdfdfd;
-      margin: 0;
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
-
-    h1 {
-      color: #e67e22;
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background-color: #fff;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-
-    th, td {
-      padding: 15px;
-      text-align: center;
-      border-bottom: 1px solid #eee;
-    }
-
-    th {
-      background-color: #e67e22;
-      color: #fff;
-    }
-
-    tr:hover {
-      background-color: #f9f9f9;
-    }
-
-    .status-Preparing {
-      color: orange;
-      font-weight: bold;
-    }
-
-    .status-Completed {
-      color: green;
-      font-weight: bold;
-    }
-
-    .status-Cancelled {
-      color: red;
-      font-weight: bold;
-    }
-
-    .back-button {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-    }
-
-    .back-button button {
-      padding: 10px 16px;
-      background-color: #e67e22;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .back-button button:hover {
-      background-color: #d35400;
-    }
-  </style>
+    <title>Confirm Order</title>
 </head>
 <body>
-  <!-- Back Button -->
-  <div class="back-button">
-    <form action="dashboard.php" method="get">
-      <button type="submit">← Back</button>
+    <h2>Confirm Your Order</h2>
+
+    <form method="post" action="orders.php">
+        <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
+
+        <p><strong>Product:</strong> <?= htmlspecialchars($product['product_name']) ?></p>
+        <p><strong>Vendor:</strong> <?= htmlspecialchars($product['vendor_name']) ?></p>
+        <p><strong>Price:</strong> ₱<?= $product['price'] ?></p>
+
+        <label for="quantity">Quantity:</label>
+        <input type="number" name="quantity" value="1" min="1" required>
+        <br><br>
+
+        <label for="payment_method">Payment Method:</label>
+        <select name="payment_method" required>
+            <option value="">-- Select Payment --</option>
+            <option value="Gcash">Gcash</option>
+            <option value="Cash">Cash</option>
+        </select>
+        <br><br>
+
+        <button type="submit">Confirm Order</button>
     </form>
-  </div>
 
-  <div class="container">
-    <h1>My Orders</h1>
-
-    <table>
-      <tr>
-        <th>Stall</th>
-        <th>Food Item</th>
-        <th>Quantity</th>
-        <th>Total Price (₱)</th>
-        <th>Status</th>
-      </tr>
-      <?php foreach ($fakeOrders as $order): ?>
-        <tr>
-          <td><?= htmlspecialchars($stalls[$order['stall'] - 1][0]) ?></td>
-          <td><?= htmlspecialchars($order['item']) ?></td>
-          <td><?= $order['quantity'] ?></td>
-          <td><?= number_format($order['total'], 2) ?></td>
-          <td class="status-<?= $order['status'] ?>"><?= $order['status'] ?></td>
-        </tr>
-      <?php endforeach; ?>
-    </table>
-  </div>
+    <br><a href="../customer/stall_view.php">Cancel and Go Back</a>
 </body>
 </html>

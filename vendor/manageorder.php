@@ -1,161 +1,139 @@
 <?php
 session_start();
+include '../config/db.php';
 
+// Only allow vendors
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'vendor') {
-    header('Location: ../login.php');
+    header("Location: ../login.php");
     exit;
 }
 
-$fullname = $_SESSION['fullname'] ?? 'Vendor';
+$vendor_id = $_SESSION['user_id'];
+$vendor_name = $_SESSION['fullname'] ?? 'Vendor';
 
-// Sample fake orders
-$orders = [
-    ['order_id' => 101, 'customer' => 'Juan Dela Cruz', 'product' => 'Chicken Adobo', 'quantity' => 2, 'total' => 150, 'status' => 'Preparing'],
-    ['order_id' => 102, 'customer' => 'Maria Santos', 'product' => 'Pasta Carbonara', 'quantity' => 1, 'total' => 90, 'status' => 'Completed'],
-    ['order_id' => 103, 'customer' => 'Jose Rizal', 'product' => 'Fruit Salad', 'quantity' => 3, 'total' => 180, 'status' => 'Cancelled'],
-];
+// Handle order status updates (confirm or reject)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['order_id'], $_POST['action'])) {
+    $order_id = intval($_POST['order_id']);
+    $action = $_POST['action'] === 'confirm' ? 'confirmed' : 'rejected';
 
-// For demo only – simulate form submission (no actual change will happen)
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $updatedStatus = $_POST['status'] ?? '';
-    $orderId = $_POST['order_id'] ?? '';
-    echo "<script>alert('Order #{$orderId} status updated to {$updatedStatus} (demo only)');</script>";
+    $stmt = $conn->prepare("UPDATE orders SET status = ? WHERE id = ? AND vendor_id = ?");
+    $stmt->bind_param("sii", $action, $order_id, $vendor_id);
+    $stmt->execute();
+    $stmt->close();
 }
+
+// Fetch all orders for this vendor
+$stmt = $conn->prepare("
+    SELECT o.id, o.quantity, o.payment_method, o.status, o.created_at,
+           p.name AS product_name, p.price,
+           u.fullname AS customer_name
+    FROM orders o
+    JOIN products p ON o.product_id = p.id
+    JOIN users u ON o.customer_id = u.id
+    WHERE o.vendor_id = ?
+    ORDER BY o.created_at DESC
+");
+$stmt->bind_param("i", $vendor_id);
+$stmt->execute();
+$result = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Manage Orders - TUPT OrderGo</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #fdfdfd;
-      margin: 0;
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-
-    h1 {
-      color: #e67e22;
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background-color: #fff;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      margin-bottom: 40px;
-    }
-
-    th, td {
-      padding: 15px;
-      text-align: center;
-      border-bottom: 1px solid #eee;
-    }
-
-    th {
-      background-color: #e67e22;
-      color: #fff;
-    }
-
-    tr:hover {
-      background-color: #f9f9f9;
-    }
-
-    select {
-      padding: 6px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-    }
-
-    .update-btn {
-      background-color: #3498db;
-      color: white;
-      padding: 6px 12px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .update-btn:hover {
-      background-color: #2980b9;
-    }
-
-    .back-button {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-    }
-
-    .back-button button {
-      padding: 10px 16px;
-      background-color: #e67e22;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .back-button button:hover {
-      background-color: #d35400;
-    }
-  </style>
+    <title>Manage Orders - <?= htmlspecialchars($vendor_name) ?></title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .btn {
+            padding: 6px 12px;
+            margin-right: 5px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-confirm { background-color: #4CAF50; color: white; }
+        .btn-reject { background-color: #f44336; color: white; }
+        .status-confirmed { color: green; font-weight: bold; }
+        .status-rejected { color: red; font-weight: bold; }
+        .status-pending { color: orange; font-weight: bold; }
+        .back-btn {
+            background-color: #555;
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border: none;
+            margin-top: 10px;
+            display: inline-block;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
-  <!-- Back Button -->
-  <div class="back-button">
-    <form action="dashboard.php" method="get">
-      <button type="submit">← Back</button>
-    </form>
-  </div>
+    <h2>📦 Manage Orders</h2>
+    <p>Welcome, <strong><?= htmlspecialchars($vendor_name) ?></strong></p>
 
-  <div class="container">
-    <h1>Manage Orders</h1>
+    <!-- Back Button -->
+    <form action="dashboard.php" method="get">
+        <button class="back-btn">← Back</button>
+    </form>
 
     <table>
-      <tr>
-        <th>Order ID</th>
-        <th>Customer</th>
-        <th>Product</th>
-        <th>Quantity</th>
-        <th>Total (₱)</th>
-        <th>Status</th>
-        <th>Action</th>
-      </tr>
-      <?php foreach ($orders as $order): ?>
-        <tr>
-          <td><?= $order['order_id'] ?></td>
-          <td><?= htmlspecialchars($order['customer']) ?></td>
-          <td><?= htmlspecialchars($order['product']) ?></td>
-          <td><?= $order['quantity'] ?></td>
-          <td><?= number_format($order['total'], 2) ?></td>
-          <td>
-            <form method="post">
-              <input type="hidden" name="order_id" value="<?= $order['order_id'] ?>">
-              <select name="status">
-                <option value="Preparing" <?= $order['status'] === 'Preparing' ? 'selected' : '' ?>>Preparing</option>
-                <option value="Completed" <?= $order['status'] === 'Completed' ? 'selected' : '' ?>>Completed</option>
-                <option value="Cancelled" <?= $order['status'] === 'Cancelled' ? 'selected' : '' ?>>Cancelled</option>
-              </select>
-          </td>
-          <td>
-              <button type="submit" class="update-btn">Update</button>
-            </form>
-          </td>
-        </tr>
-      <?php endforeach; ?>
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Payment</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Placed At</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php while ($row = $result->fetch_assoc()):
+            $total = $row['price'] * $row['quantity'];
+        ?>
+            <tr>
+                <td>#<?= $row['id'] ?></td>
+                <td><?= htmlspecialchars($row['customer_name']) ?></td>
+                <td><?= htmlspecialchars($row['product_name']) ?></td>
+                <td><?= $row['quantity'] ?></td>
+                <td><?= htmlspecialchars($row['payment_method']) ?></td>
+                <td>₱<?= number_format($total, 2) ?></td>
+                <td class="status-<?= $row['status'] ?>">
+                    <?= ucfirst($row['status']) ?>
+                </td>
+                <td><?= $row['created_at'] ?></td>
+                <td>
+                    <?php if ($row['status'] === 'pending'): ?>
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="order_id" value="<?= $row['id'] ?>">
+                            <button type="submit" name="action" value="confirm" class="btn btn-confirm">Confirm</button>
+                        </form>
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="order_id" value="<?= $row['id'] ?>">
+                            <button type="submit" name="action" value="reject" class="btn btn-reject">Reject</button>
+                        </form>
+                    <?php else: ?>
+                        <em>Accepted</em>
+                    <?php endif; ?>
+                </td>
+            </tr>
+        <?php endwhile; ?>
+        </tbody>
     </table>
-  </div>
 </body>
 </html>

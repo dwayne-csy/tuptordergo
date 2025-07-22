@@ -7,192 +7,201 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'vendor') {
     exit;
 }
 
-$fullname = $_SESSION['fullname'] ?? 'Vendor';
+$vendor_id = $_SESSION['user_id'];
+$fullname = $_SESSION['fullname'];
 
-// Stall 1: Rice Meals only
-$products = [
-    ['id' => 1, 'name' => 'Chicken Adobo', 'price' => 75.00],
-    ['id' => 2, 'name' => 'Beef Tapa', 'price' => 80.00],
-    ['id' => 3, 'name' => 'Tocino Meal', 'price' => 90.00],
-    ['id' => 4, 'name' => 'Fried Bangus', 'price' => 85.00],
-];
+include '../config/db.php';
+
+// Handle Add Product
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
+    $name = $_POST['name'] ?? '';
+    $price = floatval($_POST['price']);
+
+    if (!empty($name) && $price > 0) {
+        $image_url = null;
+
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../images/'; // Define the upload directory
+
+            $imageName = basename($_FILES['image']['name']);
+            $imageFileType = strtolower(pathinfo($imageName, PATHINFO_EXTENSION));
+            $allowedTypes = ['jpg', 'jpeg', 'png'];
+
+            if (in_array($imageFileType, $allowedTypes)) {
+                $newFileName = time() . "_" . $imageName;
+                $targetFile = $uploadDir . $newFileName;
+
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $targetFile)) {
+                    $image_url = $newFileName;
+                }
+            }
+        }
+        $stmt = $conn->prepare("INSERT INTO products (vendor_id, name, price, image_url) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("isds", $vendor_id, $name, $price, $image_url);
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
+// Handle Edit Product
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_product'])) {
+    $product_id = intval($_POST['product_id']);
+    $name = $_POST['name'] ?? '';
+    $price = floatval($_POST['price']);
+    $image_url = null;
+
+    if ($product_id > 0 && !empty($name) && $price > 0) {
+
+        // Handle new image upload if provided
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../images/';
+            $imageName = basename($_FILES['image']['name']);
+            $imageFileType = strtolower(pathinfo($imageName, PATHINFO_EXTENSION));
+            $allowedTypes = ['jpg', 'jpeg', 'png'];
+
+            if (in_array($imageFileType, $allowedTypes)) {
+                $newFileName = time() . "_" . $imageName;
+                $targetFile = $uploadDir . $newFileName;
+
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $targetFile)) {
+                    $image_url = $newFileName;
+                }
+            }
+        }
+
+        if ($image_url) {
+            $stmt = $conn->prepare("UPDATE products SET name = ?, price = ?, image_url = ? WHERE id = ? AND vendor_id = ?");
+            $stmt->bind_param("sdsii", $name, $price, $image_url, $product_id, $vendor_id);
+        } else {
+            $stmt = $conn->prepare("UPDATE products SET name = ?, price = ? WHERE id = ? AND vendor_id = ?");
+            $stmt->bind_param("sdii", $name, $price, $product_id, $vendor_id);
+        }
+
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
+// Handle Delete Product
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_product'])) {
+    $product_id = intval($_POST['product_id']);
+
+    if ($product_id > 0) {
+        $stmt = $conn->prepare("DELETE FROM products WHERE id = ? AND vendor_id = ?");
+        $stmt->bind_param("ii", $product_id, $vendor_id);
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
+// Fetch vendor's products
+$stmt = $conn->prepare("SELECT * FROM products WHERE vendor_id = ?");
+$stmt->bind_param("i", $vendor_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$products = $result->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Manage Products - Stall 1 (Rice Meals)</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #fdfdfd;
-      margin: 0;
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-
-    h1 {
-      color: #e67e22;
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background-color: #fff;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      margin-bottom: 40px;
-    }
-
-    th, td {
-      padding: 15px;
-      text-align: center;
-      border-bottom: 1px solid #eee;
-    }
-
-    th {
-      background-color: #e67e22;
-      color: #fff;
-    }
-
-    tr:hover {
-      background-color: #f9f9f9;
-    }
-
-    .actions button {
-      margin: 0 5px;
-      padding: 6px 12px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .edit-btn {
-      background-color: #3498db;
-      color: #fff;
-    }
-
-    .edit-btn:hover {
-      background-color: #2980b9;
-    }
-
-    .delete-btn {
-      background-color: #e74c3c;
-      color: #fff;
-    }
-
-    .delete-btn:hover {
-      background-color: #c0392b;
-    }
-
-    .add-form {
-      background-color: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      margin-bottom: 30px;
-    }
-
-    .add-form h2 {
-      margin-top: 0;
-      color: #e67e22;
-    }
-
-    .add-form input {
-      padding: 10px;
-      margin-bottom: 10px;
-      width: 100%;
-      box-sizing: border-box;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-
-    .add-form button {
-      padding: 10px 16px;
-      background-color: #27ae60;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .add-form button:hover {
-      background-color: #1e8449;
-    }
-
-    .back-button {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-    }
-
-    .back-button button {
-      padding: 10px 16px;
-      background-color: #e67e22;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .back-button button:hover {
-      background-color: #d35400;
-    }
-  </style>
+    <title>Manage Products</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 30px;
+            background-color: #f9f9f9;
+        }
+        h2 {
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+            background: white;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #4CAF50;
+            color: white;
+        }
+        form {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        input[type="text"], input[type="number"], input[type="file"] {
+            padding: 10px;
+            width: 200px;
+        }
+        input[type="submit"] {
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        img {
+            width: 60px;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 <body>
-  <!-- Back Button -->
-  <div class="back-button">
-    <form action="dashboard.php" method="get">
-      <button type="submit">← Back</button>
-    </form>
-  </div>
 
-  <div class="container">
-    <h1>Manage Products</h1>
+    <h2>Welcome, <?= htmlspecialchars($fullname) ?></h2>
+    <a href="dashboard.php" style="display:inline-block; margin: 10px 0; padding: 10px 20px; background: #ddd; color: black; text-decoration: none; border-radius: 5px;">← Back</a>
 
-    <!-- Add Product Form -->
-    <div class="add-form">
-      <h2>Add New Product</h2>
-      <form method="post">
+    <h3>Add New Product</h3>
+    <form method="post" enctype="multipart/form-data">
         <input type="text" name="name" placeholder="Product Name" required>
-        <input type="number" name="price" placeholder="Price" step="10" required>
-        <button type="submit">Add Product</button>
-      </form>
-    </div>
+        <input type="number" name="price" placeholder="Price" step="0.01" min="0" required>
+        <input type="file" name="image" accept="image/*">
+        <input type="submit" name="add_product" value="Add Product">
+    </form>
 
-    <!-- Product Table -->
+    <h3>Product List</h3>
     <table>
-      <tr>
-        <th>ID</th>
-        <th>Product Name</th>
-        <th>Price (₱)</th>
-        <th>Actions</th>
-      </tr>
-      <?php foreach ($products as $product): ?>
         <tr>
-          <td><?= $product['id'] ?></td>
-          <td><?= htmlspecialchars($product['name']) ?></td>
-          <td><?= number_format($product['price'], 2) ?></td>
-          <td class="actions">
-            <button class="edit-btn">Edit</button>
-            <button class="delete-btn">Delete</button>
-          </td>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Image</th>
+            <th>Actions</th>
         </tr>
-      <?php endforeach; ?>
+        <?php foreach ($products as $product): ?>
+        <tr>
+            <td><?= htmlspecialchars($product['name']) ?></td>
+            <td>₱<?= number_format($product['price'], 2) ?></td>
+            <td>
+                <?php if (!empty($product['image_url'])): ?>
+                    <img src="../images/<?= htmlspecialchars($product['image_url']) ?>" alt="Image">
+                <?php else: ?>
+                    N/A
+                <?php endif; ?>
+            </td>
+            <td>
+                <form method="post" enctype="multipart/form-data" style="display:inline-block;">
+                    <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
+                    <input type="text" name="name" value="<?= htmlspecialchars($product['name']) ?>" required>
+                    <input type="number" name="price" value="<?= $product['price'] ?>" step="0.01" required>
+                    <input type="file" name="image" accept="image/*">
+                    <input type="submit" name="edit_product" value="Update">
+                </form>
+                <form method="post" style="display:inline-block;">
+                    <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
+                    <input type="submit" name="delete_product" value="Delete" onclick="return confirm('Are you sure?')">
+                </form>
+            </td>
+        </tr>
+        <?php endforeach; ?>
     </table>
-  </div>
+
 </body>
 </html>

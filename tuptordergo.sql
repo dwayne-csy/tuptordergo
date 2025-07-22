@@ -4,10 +4,69 @@ USE TUPTOrderGo;
 
 -- Create the users table with additional columns: fullname and profile
 CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    fullname VARCHAR(150) NOT NULL,         
-    email VARCHAR(100) UNIQUE NOT NULL,
+    id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    fullname VARCHAR(150) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    photo VARCHAR(255) DEFAULT NULL,
     password VARCHAR(255) NOT NULL,
-    role ENUM('customer', 'vendor') DEFAULT 'customer',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    role ENUM('customer','vendor') DEFAULT 'customer',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE orders (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  customer_id INT NOT NULL,
+  vendor_id INT NOT NULL,
+  product_id INT NOT NULL,
+  quantity INT NOT NULL DEFAULT 1,
+  payment_method VARCHAR(50),
+  status VARCHAR(50) DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (customer_id) REFERENCES users(id),
+  FOREIGN KEY (vendor_id) REFERENCES users(id),
+  FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+
+CREATE TABLE products (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  vendor_id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  price DECIMAL(10, 2) NOT NULL,
+  image_url VARCHAR(255) DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
+CREATE TABLE reservations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    vendor_id INT NOT NULL,
+    product_id INT NOT NULL,
+    message TEXT,
+    table_number VARCHAR(50),
+    date DATE,
+    time TIME,
+    status ENUM('pending', 'accepted') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+
+
+
+
+
+
+CREATE TABLE announcements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    date_posted DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (vendor_id) REFERENCES users(id)
 );

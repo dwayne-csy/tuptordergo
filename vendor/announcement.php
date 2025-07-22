@@ -1,5 +1,6 @@
 <?php
 session_start();
+include '../config/db.php';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'vendor') {
     header('Location: ../login.php');
@@ -7,12 +8,27 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'vendor') {
 }
 
 $fullname = $_SESSION['fullname'] ?? 'Vendor';
+$vendor_id = $_SESSION['user_id'];
+$stall_name = $_SESSION['stall_name'] ?? 'Unknown Stall';
 
-// Sample announcements (fake, for demo)
-$announcements = [
-    ['id' => 1, 'title' => 'Menu Update', 'content' => 'We added new dishes including Veggie Wraps and Mango Float.', 'date' => '2025-07-20'],
-    ['id' => 2, 'title' => 'Temporary Closure', 'content' => 'Stall will be closed on July 23 for maintenance.', 'date' => '2025-07-18'],
-];
+// Insert new announcement
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['title']) && !empty($_POST['content'])) {
+    $title = trim($_POST['title']);
+    $content = trim($_POST['content']); // this will go to `message` column
+
+    $stmt = $conn->prepare("INSERT INTO announcements (vendor_id, stall_name, title, message, date_posted) VALUES (?, ?, ?, ?, NOW())");
+    $stmt->bind_param("isss", $vendor_id, $stall_name, $title, $content);
+    $stmt->execute();
+    $stmt->close();
+}
+
+// Fetch announcements for this vendor
+$stmt = $conn->prepare("SELECT * FROM announcements WHERE vendor_id = ? ORDER BY id DESC");
+$stmt->bind_param("i", $vendor_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$announcements = $result->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 ?>
 
 <!DOCTYPE html>
@@ -151,15 +167,15 @@ $announcements = [
       <tr>
         <th>ID</th>
         <th>Title</th>
-        <th>Content</th>
+        <th>Message</th>
         <th>Date</th>
       </tr>
       <?php foreach ($announcements as $announcement): ?>
         <tr>
           <td><?= $announcement['id'] ?></td>
           <td><?= htmlspecialchars($announcement['title']) ?></td>
-          <td><?= htmlspecialchars($announcement['content']) ?></td>
-          <td><?= $announcement['date'] ?></td>
+          <td><?= htmlspecialchars($announcement['message']) ?></td>
+          <td><?= $announcement['date_posted'] ?></td>
         </tr>
       <?php endforeach; ?>
     </table>

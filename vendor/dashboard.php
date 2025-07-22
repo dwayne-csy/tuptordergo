@@ -145,7 +145,9 @@ $salesData = [
 </div>
 
 <div class="sidebar" id="sidebar">
+  <a href="editstall.php">Edit Stall</a>
   <a href="manageproduct.php">Manage Products</a>
+  <a href="managereservations.php">Manage Reservations</a>
   <a href="manageorder.php">Manage Orders</a>
   <a href="managereviews.php">Manage Reviews</a>
   <a href="announcement.php">Announcement</a>
