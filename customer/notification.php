@@ -1,118 +1,172 @@
 <?php
 session_start();
-include '../config/db.php'; // Connect to your DB
+include '../config/db.php';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
-    header('Location: ../login.php');
+    header("Location: ../login.php");
     exit;
 }
 
-$fullname = $_SESSION['fullname'] ?? 'John Doe';
+$customer_id = $_SESSION['user_id'];
 
-// Fetch all vendor announcements
-$notifications = [];
-
-$sql = "SELECT a.*, u.fullname AS stall_name 
-        FROM announcements a 
-        JOIN users u ON a.vendor_id = u.id 
-        WHERE u.role = 'vendor' 
-        ORDER BY a.id DESC";
-
-$result = $conn->query($sql);
-
-if ($result && $result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        $stall = htmlspecialchars($row['stall_name']);
-        $title = htmlspecialchars($row['title']);
-         $content = htmlspecialchars($row['message'] ?? $row['content'] ?? '');
-        $formatted = "📢 <strong>{$stall}</strong> posted: <em>{$title}</em> — {$content}";
-        $notifications[] = $formatted;
-    }
+// Delete single notification
+if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
+    $notification_id = intval($_GET['delete']);
+    $deleteStmt = $conn->prepare("DELETE FROM notifications WHERE id = ? AND customer_id = ?");
+    $deleteStmt->bind_param("ii", $notification_id, $customer_id);
+    $deleteStmt->execute();
+    header("Location: notification.php");
+    exit;
 }
 
-$conn->close();
+// Delete all notifications
+if (isset($_GET['delete_all'])) {
+    $deleteAllStmt = $conn->prepare("DELETE FROM notifications WHERE customer_id = ?");
+    $deleteAllStmt->bind_param("i", $customer_id);
+    $deleteAllStmt->execute();
+    header("Location: notification.php");
+    exit;
+}
+
+// Fetch notifications
+$sql = "SELECT id, message, created_at FROM notifications WHERE customer_id = ? ORDER BY created_at DESC";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $customer_id);
+$stmt->execute();
+$result = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Notifications</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f9f9f9;
-    }
+    <title>My Notifications</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f5f7fb;
+            margin: 0;
+            padding: 0;
+        }
 
-    header {
-      background-color: #ff7f50;
-      color: white;
-      padding: 15px 20px;
-      text-align: center;
-      font-size: 22px;
-      font-weight: bold;
-    }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
 
-    .container {
-      padding: 20px;
-      max-width: 900px;
-      margin: 0 auto;
-    }
+        h2 {
+            text-align: center;
+            color: #2b6777;
+        }
 
-    .notification {
-      background-color: white;
-      border-left: 5px solid #ff7f50;
-      margin-bottom: 15px;
-      padding: 15px 20px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      border-radius: 6px;
-      font-size: 16px;
-    }
+        .notification {
+            background-color: #dff6ff;
+            border-left: 6px solid #2b6777;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            color: #333;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            position: relative;
+        }
 
-    .back-button {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-    }
+        .notification small {
+            color: #666;
+            display: block;
+            margin-top: 6px;
+            font-size: 13px;
+        }
 
-    .back-button button {
-      padding: 10px 16px;
-      background-color: #e67e22;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-    }
+        .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: red;
+            cursor: pointer;
+        }
 
-    .back-button button:hover {
-      background-color: #d35400;
-    }
-  </style>
+        .no-data {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            margin-top: 30px;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: #2b6777;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .back-btn:hover {
+            background-color: #1c4654;
+        }
+
+        .delete-all-btn {
+            display: block;
+            width: 150px;
+            margin: 30px auto 0;
+            background-color: #ff4d4d;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .delete-all-btn:hover {
+            background-color: #cc0000;
+        }
+
+        @media screen and (max-width: 600px) {
+            .container {
+                margin: 20px;
+                padding: 20px;
+            }
+
+            .notification {
+                font-size: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <!-- Back Button -->
-  <div class="back-button">
     <form action="dashboard.php" method="get">
-      <button type="submit">← Back</button>
+        <button class="back-btn">← Back</button>
     </form>
-  </div>
 
-  <header>📢 Notifications</header>
-  <div class="container">
-    <?php if (empty($notifications)): ?>
-      <div class="notification">No announcements yet.</div>
-    <?php else: ?>
-      <?php foreach ($notifications as $note): ?>
-        <div class="notification">
-          <?= $note ?>
-        </div>
-      <?php endforeach; ?>
-    <?php endif; ?>
-  </div>
+    <div class="container">
+        <h2>My Notifications</h2>
+
+        <?php if ($result->num_rows > 0): ?>
+            <?php while ($row = $result->fetch_assoc()): ?>
+                <div class="notification">
+                    <?= htmlspecialchars($row['message']) ?>
+                    <small><?= date('M d, Y H:i', strtotime($row['created_at'])) ?></small>
+                    <form method="get" style="position:absolute; top: 10px; right: 15px;">
+                        <button class="delete-btn" name="delete" value="<?= $row['id'] ?>" title="Delete Notification">🗑️</button>
+                    </form>
+                </div>
+            <?php endwhile; ?>
+            <form method="get">
+                <button class="delete-all-btn" name="delete_all" onclick="return confirm('Delete all notifications?')">Delete All 🗑️</button>
+            </form>
+        <?php else: ?>
+            <p class="no-data">You have no notifications yet.</p>
+        <?php endif; ?>
+    </div>
 </body>
 </html>

@@ -2,23 +2,21 @@
 session_start();
 include '../../config/db.php';
 
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customer_id = $_SESSION['user_id'];
     $vendor_id = $_POST['stall'];
     $product_id = $_POST['product'];
     $message = $_POST['message'];
-    $table_number = $_POST['table_number'];
     $date = $_POST['date'];
     $time = $_POST['time'];
     $status = 'pending';
 
     $sql = "INSERT INTO reservations 
-        (customer_id, vendor_id, product_id, message, table_number, date, time, status) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        (customer_id, vendor_id, product_id, message, date, time, status) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("iiisssss", $customer_id, $vendor_id, $product_id, $message, $table_number, $date, $time, $status);
-    
+    $stmt->bind_param("iiissss", $customer_id, $vendor_id, $product_id, $message, $date, $time, $status);
+
     if ($stmt->execute()) {
         ?>
         <!DOCTYPE html>
@@ -79,7 +77,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="info"><strong>Stall ID:</strong> <?= htmlspecialchars($vendor_id) ?></div>
                 <div class="info"><strong>Product ID:</strong> <?= htmlspecialchars($product_id) ?></div>
                 <div class="info"><strong>Message:</strong> <?= htmlspecialchars($message) ?></div>
-                <div class="info"><strong>Table Number:</strong> <?= htmlspecialchars($table_number) ?></div>
                 <div class="info"><strong>Date:</strong> <?= htmlspecialchars($date) ?></div>
                 <div class="info"><strong>Time:</strong> <?= htmlspecialchars($time) ?></div>
                 <div class="info"><strong>Status:</strong> <?= htmlspecialchars($status) ?></div>

@@ -11,7 +11,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param("sss", $fullname, $email, $password);
 
     if ($stmt->execute()) {
-        $success = "✅ Registration successful. <a href='login.php'>Login here</a>";
+        // Redirect to login.php after successful registration
+        header("Location: login.php?success=1");
+        exit;
     } else {
         $error = "❌ Error: " . $stmt->error;
     }
@@ -99,10 +101,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       margin: 15px 0;
     }
 
-    .message.success {
-      color: green;
-    }
-
     .message.error {
       color: red;
     }
@@ -113,7 +111,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="emojis">🍛 🥤 🍽️</div>
     <h2>TUPT OrderGo</h2>
 
-    <?php if (isset($success)) echo "<p class='message success'>$success</p>"; ?>
     <?php if (isset($error)) echo "<p class='message error'>$error</p>"; ?>
 
     <form method="POST" action="register.php">

@@ -52,39 +52,120 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html>
 <head>
     <title>Edit Stall Profile</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .profile-photo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .profile-photo img {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #ccc;
+        }
+
+        form label {
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        button[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .message {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .message.success {
+            color: green;
+        }
+
+        .message.error {
+            color: red;
+        }
+    </style>
 </head>
 <body>
-    <h2>Edit Stall Profile</h2>
+    <div class="container">
+        <a href="dashboard.php">
+            <button class="back-btn">⬅️</button>
+        </a>
 
-    <?php if (isset($_GET['success'])): ?>
-        <p style="color:green;">✅ Profile updated successfully!</p>
-    <?php elseif (isset($error)): ?>
-        <p style="color:red;">❌ <?= $error ?></p>
-    <?php endif; ?>
-
-    <form method="POST" enctype="multipart/form-data">
-        <label>Full Name:</label><br>
-        <input type="text" name="fullname" value="<?= htmlspecialchars($vendor['fullname']) ?>" required><br><br>
-
-        <label>Email (not editable):</label><br>
-        <input type="email" value="<?= htmlspecialchars($vendor['email']) ?>" readonly><br><br>
-
-        <label>Current Photo:</label><br>
         <?php if (!empty($vendor['photo'])): ?>
-            <img src="../images/<?= htmlspecialchars($vendor['photo']) ?>" width="100"><br>
-        <?php else: ?>
-            <em>No photo uploaded</em><br>
-        <?php endif; ?><br>
+            <div class="profile-photo">
+                <img src="../images/<?= htmlspecialchars($vendor['photo']) ?>" alt="Profile Photo">
+            </div>
+        <?php endif; ?>
 
-        <label>Upload New Photo:</label><br>
-        <input type="file" name="photo" accept="image/*"><br><br>
+        <h2 style="text-align:center;">Edit Stall Profile</h2>
 
-        <button type="submit">💾 Save Changes</button>
-    </form>
+        <?php if (isset($_GET['success'])): ?>
+            <div class="message success">✅ Profile updated successfully!</div>
+        <?php elseif (isset($error)): ?>
+            <div class="message error">❌ <?= $error ?></div>
+        <?php endif; ?>
 
-    <br>
-    <a href="dashboard.php">
-        <button>⬅️ Back</button>
-    </a>
+        <form method="POST" enctype="multipart/form-data">
+            <label>Stall Name:</label>
+            <input type="text" name="fullname" value="<?= htmlspecialchars($vendor['fullname']) ?>" required>
+
+            <label>Email:</label>
+            <input type="email" value="<?= htmlspecialchars($vendor['email']) ?>" readonly disabled>
+
+
+            <label>Upload New Photo:</label>
+            <input type="file" name="photo" accept="image/*">
+
+            <button type="submit">💾 Save Changes</button>
+        </form>
+    </div>
 </body>
 </html>

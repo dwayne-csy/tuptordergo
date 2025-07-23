@@ -2,29 +2,30 @@
 session_start();
 include '../config/db.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
+// Only allow admin
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../login.php");
     exit;
 }
 
-$customer_id = $_SESSION['user_id'];
-$fullname = $_SESSION['fullname'] ?? 'Customer';
-
 // Get vendor_id from URL
 $vendorId = isset($_GET['vendor_id']) ? intval($_GET['vendor_id']) : 1;
 
-// Fetch cart item quantity
-$cart_count = 0;
-$cart_stmt = $conn->prepare("SELECT SUM(quantity) AS total FROM cart_items WHERE user_id = ?");
-$cart_stmt->bind_param("i", $customer_id);
-$cart_stmt->execute();
-$cart_result = $cart_stmt->get_result();
-if ($cart_row = $cart_result->fetch_assoc()) {
-    $cart_count = $cart_row['total'] ?? 0;
+// Handle approval
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['approve_product'])) {
+    $product_id = intval($_POST['product_id']);
+    $stmt = $conn->prepare("UPDATE products SET is_approved = 1 WHERE id = ?");
+    $stmt->bind_param("i", $product_id);
+    $stmt->execute();
+    $stmt->close();
+
+    // Redirect to prevent resubmission
+    header("Location: view_vendor_products.php?vendor_id=$vendorId");
+    exit;
 }
 
-// Fetch products for the specified vendor
-$sql = "SELECT * FROM products WHERE vendor_id = ? AND is_approved = 1";
+// Fetch all products (approved and unapproved) for the specified vendor
+$sql = "SELECT * FROM products WHERE vendor_id = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $vendorId);
 $stmt->execute();
@@ -45,11 +46,12 @@ $product_query = $stmt->get_result();
         h1 {
             color: #2c3e50;
             margin-top: 60px;
+            text-align: center;
         }
 
         .product {
             display: inline-block;
-            width: 200px;
+            width: 220px;
             border: 1px solid #ddd;
             margin: 10px;
             padding: 10px;
@@ -57,7 +59,7 @@ $product_query = $stmt->get_result();
             background: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-            transition: transform 0.2s;
+            vertical-align: top;
         }
 
         .product:hover {
@@ -71,38 +73,14 @@ $product_query = $stmt->get_result();
             border-radius: 6px;
         }
 
-        .button-group {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
+        .product h3 {
+            margin: 10px 0 5px;
         }
 
-        .cart-btn,
-        .order-btn {
-            flex: 1;
-            padding: 6px 8px;
-            border: none;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            font-size: 14px;
-            margin: 0 2px;
-        }
-
-        .cart-btn {
-            background-color: #f39c12;
-        }
-
-        .cart-btn:hover {
-            background-color: #d68910;
-        }
-
-        .order-btn {
-            background-color: #27ae60;
-        }
-
-        .order-btn:hover {
-            background-color: #219150;
+        .product p {
+            margin: 0;
+            font-weight: bold;
+            color: #27ae60;
         }
 
         .back-btn {
@@ -119,7 +97,6 @@ $product_query = $stmt->get_result();
             background-color: #2980b9;
         }
 
-        /* Top navigation bar */
         .top-bar {
             position: fixed;
             top: 0;
@@ -141,31 +118,25 @@ $product_query = $stmt->get_result();
             color: #2c3e50;
         }
 
-        .cart-icon {
-            position: relative;
-            text-decoration: none;
-            background-color: #f39c12;
+        .approve-btn {
+            background-color: #2ecc71;
             color: white;
-            padding: 8px 14px;
+            border: none;
+            padding: 6px 12px;
+            margin-top: 10px;
+            cursor: pointer;
             border-radius: 4px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
         }
 
-        .cart-icon:hover {
-            background-color: #d68910;
+        .approve-btn:hover {
+            background-color: #27ae60;
         }
 
-        .cart-badge {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: red;
-            color: white;
-            font-size: 12px;
-            padding: 2px 6px;
-            border-radius: 50%;
+        .approved-label {
+            display: block;
+            color: #888;
+            font-size: 14px;
+            margin-top: 10px;
         }
 
         @media (max-width: 600px) {
@@ -177,42 +148,43 @@ $product_query = $stmt->get_result();
 </head>
 <body>
 
-<!-- Top Bar with Title and Cart -->
 <div class="top-bar">
-    <a href="dashboard.php" class="back-btn">← Back to Dashboard</a>
-    <h2>TUPT OrderGO</h2>
-    <a href="cart.php" class="cart-icon">
-        🛒
-        <?php if ($cart_count > 0): ?>
-            <span class="cart-badge"><?php echo $cart_count; ?></span>
-        <?php endif; ?>
-    </a>
+    <a href="managevendor.php" class="back-btn">← Back to Vendors</a>
+    <h2>TUPT-OrderGo</h2>
+    <div></div>
 </div>
 
-<h1>Products for Vendor <?php echo $vendorId; ?></h1>
+<h1>Products from Vendor #<?php echo $vendorId; ?></h1>
 
 <?php
 if ($product_query->num_rows > 0) {
     while ($product = $product_query->fetch_assoc()) {
-        $id = $product['id'];
         $name = htmlspecialchars($product['name']);
         $desc = isset($product['description']) ? htmlspecialchars($product['description']) : 'No description';
         $price = number_format($product['price'], 2);
-        $image = isset($product['image_url']) && $product['image_url'] ? $product['image_url'] : 'default-product.jpg';
+        $image = !empty($product['image_url']) ? $product['image_url'] : 'default-product.jpg';
+        $is_approved = $product['is_approved'];
 
         echo "
         <div class='product'>
             <img src='../images/$image' alt='$name'>
             <h3>$name</h3>
-            <p>₱$price</p>
-            <div class='button-group'>
-                <a href='add_to_cart.php?product_id=$id' class='cart-btn'>🛒 Cart</a>
-                <a href='orders.php?product_id=$id' class='order-btn'>🧾 Order</a>
-            </div>
-        </div>";
+            <p>₱$price</p>";
+
+        if ($is_approved) {
+            echo "<span class='approved-label'>Approved</span>";
+        } else {
+            echo "
+            <form method='post'>
+                <input type='hidden' name='product_id' value='{$product['id']}'>
+                <input type='submit' name='approve_product' value='Approve' class='approve-btn'>
+            </form>";
+        }
+
+        echo "</div>";
     }
 } else {
-    echo "<p>No products found for this stall.</p>";
+    echo "<p>No products found for this vendor.</p>";
 }
 ?>
 

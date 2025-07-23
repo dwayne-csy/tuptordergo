@@ -7,104 +7,166 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     exit;
 }
 
-$user_id = $_SESSION['user_id'];
-
-// Handle order submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $product_id = intval($_POST['product_id']);
-    $quantity = intval($_POST['quantity']);
-    $payment_method = $_POST['payment_method'];
-
-    // Get vendor_id from the product
-    $stmt = $conn->prepare("SELECT vendor_id FROM products WHERE id = ?");
-    $stmt->bind_param("i", $product_id);
-    $stmt->execute();
-    $stmt->bind_result($vendor_id);
-    $stmt->fetch();
-    $stmt->close();
-
-    if (!$vendor_id) {
-        echo "Invalid product or vendor.";
-        exit;
-    }
-
-    // Insert into orders table
-    $stmt = $conn->prepare("INSERT INTO orders (customer_id, vendor_id, product_id, quantity, payment_method, status) VALUES (?, ?, ?, ?, ?, 'pending')");
-    $stmt->bind_param("iiiis", $user_id, $vendor_id, $product_id, $quantity, $payment_method);
-    
-    if ($stmt->execute()) {
-        $order_id = $stmt->insert_id;
-        $stmt->close();
-
-        // ✅ Redirect with the order_id
-        header("Location: order_success.php?order_id=" . $order_id);
-        exit;
-    } else {
-        echo "Failed to place order.";
-        $stmt->close();
-        exit;
-    }
-}
-
-// If no product_id in URL, show error
 if (!isset($_GET['product_id'])) {
     echo "No product selected.";
     exit;
 }
 
 $product_id = intval($_GET['product_id']);
+$customer_id = $_SESSION['user_id'];
 
-// Get product details
-$stmt = $conn->prepare("
-    SELECT p.id as product_id, p.name as product_name, p.price, u.fullname as vendor_name 
-    FROM products p 
-    JOIN users u ON p.vendor_id = u.id 
-    WHERE p.id = ?
-");
+// Fetch product info
+$stmt = $conn->prepare("SELECT p.*, u.fullname AS vendor_name FROM products p JOIN users u ON p.vendor_id = u.id WHERE p.id = ?");
 $stmt->bind_param("i", $product_id);
 $stmt->execute();
 $result = $stmt->get_result();
-$product = $result->fetch_assoc();
-$stmt->close();
 
-if (!$product) {
+if ($result->num_rows === 0) {
     echo "Product not found.";
     exit;
 }
-?>
-<!-- HTML form stays unchanged -->
 
+$product = $result->fetch_assoc();
+$imageFile = !empty($product['image_url']) ? htmlspecialchars($product['image_url']) : 'no-image.png';
+$imagePath = "../images/" . $imageFile;
+?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Confirm Order</title>
+<meta charset="UTF-8">
+<title>Confirm Order</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: #f9fbfd;
+        margin: 0;
+        padding: 40px 20px;
+        display: flex;
+        justify-content: center;
+    }
+    .confirm-box {
+        background: #fff;
+        max-width: 500px;
+        width: 100%;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        text-align: center;
+        position: relative;
+    }
+    .back-btn {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        text-decoration: none;
+        color: #0984e3;
+        font-size: 13px;
+        font-weight: 500;
+        background: #eaf4fb;
+        padding: 6px 12px;
+        border-radius: 8px;
+        transition: background 0.3s;
+    }
+    .back-btn:hover {
+        background: #d6ecf8;
+    }
+    h2 {
+        color: #00b894;
+        margin-bottom: 20px;
+        font-size: 1.5rem;
+    }
+    .product-image {
+        width: 180px;
+        height: 180px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 3px solid #ffeaa7;
+        margin-bottom: 16px;
+    }
+    p {
+        margin: 6px 0;
+        font-size: 15px;
+        color: #2d3436;
+    }
+    p strong {
+        color: #0984e3;
+    }
+    form {
+        margin-top: 20px;
+        text-align: left;
+    }
+    label {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 14px;
+        color: #2d3436;
+    }
+    input[type="number"],
+    select {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        font-size: 14px;
+        margin-top: 4px;
+        margin-bottom: 12px;
+        background: #f9fcff;
+        transition: border-color 0.3s;
+    }
+    input[type="number"]:focus,
+    select:focus {
+        outline: none;
+        border-color: #00b894;
+    }
+    button {
+        width: 100%;
+        padding: 12px;
+        background: #00b894;
+        color: white;
+        font-weight: 500;
+        font-size: 16px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+    }
+    button:hover {
+        background: #019875;
+    }
+</style>
 </head>
 <body>
+
+<div class="confirm-box">
+    <a href="dashboard.php" class="back-btn">← Back</a>
     <h2>Confirm Your Order</h2>
+    <img src="<?= $imagePath ?>" alt="Product Image" class="product-image">
+    <p><strong>Product:</strong> <?= htmlspecialchars($product['name']) ?></p>
+    <p><strong>Price:</strong> ₱<?= number_format($product['price'], 2) ?></p>
+    <p><strong>Vendor:</strong> <?= htmlspecialchars($product['vendor_name']) ?></p>
 
-    <form method="post" action="orders.php">
-        <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
+    <form action="add_order.php" method="POST">
+        <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
+        <input type="hidden" name="vendor_id" value="<?= $product['vendor_id'] ?>">
+        <input type="hidden" name="price" value="<?= $product['price'] ?>">
 
-        <p><strong>Product:</strong> <?= htmlspecialchars($product['product_name']) ?></p>
-        <p><strong>Vendor:</strong> <?= htmlspecialchars($product['vendor_name']) ?></p>
-        <p><strong>Price:</strong> ₱<?= $product['price'] ?></p>
+        <label>Quantity:
+            <input type="number" name="quantity" value="1" min="1" required>
+        </label>
 
-        <label for="quantity">Quantity:</label>
-        <input type="number" name="quantity" value="1" min="1" required>
-        <br><br>
+        <label>Payment Method:
+            <select name="payment_method" required>
+                <option value="">--Select--</option>
+                <option value="Cash on Delivery">Cash on Delivery</option>
+                <option value="GCash">GCash</option>
+            </select>
+        </label>
 
-        <label for="payment_method">Payment Method:</label>
-        <select name="payment_method" required>
-            <option value="">-- Select Payment --</option>
-            <option value="Gcash">Gcash</option>
-            <option value="Cash">Cash</option>
-        </select>
-        <br><br>
-
-        <button type="submit">Confirm Order</button>
+        <button type="submit">Place Order</button>
     </form>
+</div>
 
-    <br><a href="../customer/stall_view.php">Cancel and Go Back</a>
 </body>
 </html>

@@ -1,7 +1,6 @@
 <?php
 session_start();
 
-// Simulate a logged-in vendor
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'vendor') {
     header('Location: ../login.php');
     exit;
@@ -21,8 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
         $image_url = null;
 
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = __DIR__ . '/../images/'; // Define the upload directory
-
+            $uploadDir = __DIR__ . '/../images/';
             $imageName = basename($_FILES['image']['name']);
             $imageFileType = strtolower(pathinfo($imageName, PATHINFO_EXTENSION));
             $allowedTypes = ['jpg', 'jpeg', 'png'];
@@ -36,7 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                 }
             }
         }
-        $stmt = $conn->prepare("INSERT INTO products (vendor_id, name, price, image_url) VALUES (?, ?, ?, ?)");
+
+        $stmt = $conn->prepare("INSERT INTO products (vendor_id, name, price, image_url, is_approved) VALUES (?, ?, ?, ?, 0)");
         $stmt->bind_param("isds", $vendor_id, $name, $price, $image_url);
         $stmt->execute();
         $stmt->close();
@@ -51,8 +50,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_product'])) {
     $image_url = null;
 
     if ($product_id > 0 && !empty($name) && $price > 0) {
-
-        // Handle new image upload if provided
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
             $uploadDir = __DIR__ . '/../images/';
             $imageName = basename($_FILES['image']['name']);
@@ -70,10 +67,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_product'])) {
         }
 
         if ($image_url) {
-            $stmt = $conn->prepare("UPDATE products SET name = ?, price = ?, image_url = ? WHERE id = ? AND vendor_id = ?");
+            $stmt = $conn->prepare("UPDATE products SET name = ?, price = ?, image_url = ?, is_approved = 0 WHERE id = ? AND vendor_id = ?");
             $stmt->bind_param("sdsii", $name, $price, $image_url, $product_id, $vendor_id);
         } else {
-            $stmt = $conn->prepare("UPDATE products SET name = ?, price = ? WHERE id = ? AND vendor_id = ?");
+            $stmt = $conn->prepare("UPDATE products SET name = ?, price = ?, is_approved = 0 WHERE id = ? AND vendor_id = ?");
             $stmt->bind_param("sdii", $name, $price, $product_id, $vendor_id);
         }
 
@@ -94,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_product'])) {
     }
 }
 
-// Fetch vendor's products
+// Fetch products
 $stmt = $conn->prepare("SELECT * FROM products WHERE vendor_id = ?");
 $stmt->bind_param("i", $vendor_id);
 $stmt->execute();
@@ -108,56 +105,21 @@ $stmt->close();
 <head>
     <title>Manage Products</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 30px;
-            background-color: #f9f9f9;
-        }
-        h2 {
-            margin-bottom: 10px;
-        }
-        table {
-            width: 100%;
-            margin-top: 20px;
-            border-collapse: collapse;
-            background: white;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 12px;
-            text-align: left;
-        }
-        th {
-            background: #4CAF50;
-            color: white;
-        }
-        form {
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        input[type="text"], input[type="number"], input[type="file"] {
-            padding: 10px;
-            width: 200px;
-        }
-        input[type="submit"] {
-            padding: 10px 20px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        img {
-            width: 60px;
-            border-radius: 4px;
-        }
+        body { font-family: Arial; padding: 30px; background: #f9f9f9; }
+        h2, h3 { margin-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; background: #fff; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #4CAF50; color: white; }
+        form { margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+        input[type="text"], input[type="number"], input[type="file"] { padding: 10px; width: 200px; }
+        input[type="submit"] { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        img { width: 60px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
     <h2>Welcome, <?= htmlspecialchars($fullname) ?></h2>
-    <a href="dashboard.php" style="display:inline-block; margin: 10px 0; padding: 10px 20px; background: #ddd; color: black; text-decoration: none; border-radius: 5px;">← Back</a>
+    <a href="dashboard.php" style="display:inline-block; margin: 10px 0; padding: 10px 20px; background: #ddd; text-decoration: none;">← Back</a>
 
     <h3>Add New Product</h3>
     <form method="post" enctype="multipart/form-data">
@@ -167,12 +129,13 @@ $stmt->close();
         <input type="submit" name="add_product" value="Add Product">
     </form>
 
-    <h3>Product List</h3>
+    <h3>Your Products</h3>
     <table>
         <tr>
             <th>Name</th>
             <th>Price</th>
             <th>Image</th>
+            <th>Status</th>
             <th>Actions</th>
         </tr>
         <?php foreach ($products as $product): ?>
@@ -185,6 +148,9 @@ $stmt->close();
                 <?php else: ?>
                     N/A
                 <?php endif; ?>
+            </td>
+            <td>
+                <?= $product['is_approved'] ? '<span style="color:green;">Approved</span>' : '<span style="color:orange;">Pending</span>' ?>
             </td>
             <td>
                 <form method="post" enctype="multipart/form-data" style="display:inline-block;">

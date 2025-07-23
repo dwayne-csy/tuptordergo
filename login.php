@@ -26,11 +26,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($user['role'] === 'vendor') {
             header("Location: vendor/dashboard.php");
             exit;
+        } elseif ($user['role'] === 'admin') {
+            header("Location: admin/dashboard.php");
+            exit;
         } else {
-            $error = "❌ Unknown user role.";
+            $error = " Unknown user role.";
         }
     } else {
-        $error = "❌ Invalid email or password.";
+        $error = " Invalid email or password.";
     }
 
     $stmt->close();

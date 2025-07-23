@@ -2,7 +2,6 @@
 session_start();
 include '../../config/db.php';
 
-
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     header('Location: ../login.php');
     exit;
@@ -66,7 +65,6 @@ $reservations = $stmt->get_result();
     <tr>
         <th>Vendor</th>
         <th>Product</th>
-        <th>Table #</th>
         <th>Date</th>
         <th>Time</th>
         <th>Message</th>
@@ -77,7 +75,6 @@ $reservations = $stmt->get_result();
             <tr>
                 <td><?= htmlspecialchars($row['vendor_name']) ?></td>
                 <td><?= htmlspecialchars($row['product_name']) ?></td>
-                <td><?= htmlspecialchars($row['table_number']) ?></td>
                 <td><?= $row['date'] ?></td>
                 <td><?= $row['time'] ?></td>
                 <td><?= htmlspecialchars($row['message']) ?></td>
@@ -86,7 +83,7 @@ $reservations = $stmt->get_result();
         <?php endwhile; ?>
     <?php else: ?>
         <tr>
-            <td colspan="7">No reservations found.</td>
+            <td colspan="6">No reservations found.</td>
         </tr>
     <?php endif; ?>
 </table>

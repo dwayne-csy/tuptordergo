@@ -2,235 +2,194 @@
 session_start();
 include '../config/db.php';
 
-// Check if the user is logged in and is a customer
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
+if (!isset($_SESSION['user_id'])) {
     header("Location: ../login.php");
     exit;
 }
 
 $user_id = $_SESSION['user_id'];
-$success = $error = $password_success = $password_error = "";
-
-// Fetch current profile data
-$sql = "SELECT fullname, email FROM users WHERE id = ?";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$stmt->bind_result($fullname, $email);
-$stmt->fetch();
-$stmt->close();
 
 // Handle profile update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
-    $new_fullname = $_POST['fullname'];
-    $new_email = $_POST['email'];
+    $fullname = $_POST['fullname'];
 
-    $sql = "UPDATE users SET fullname = ?, email = ? WHERE id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ssi", $new_fullname, $new_email, $user_id);
+    if (!empty($_FILES['photo']['name'])) {
+        $target_dir = "../images/";
+        $photo_name = basename($_FILES["photo"]["name"]);
+        $target_file = $target_dir . $photo_name;
+        move_uploaded_file($_FILES["photo"]["tmp_name"], $target_file);
 
-    if ($stmt->execute()) {
-        $_SESSION['fullname'] = $new_fullname;
-        $success = "✅ Profile updated successfully!";
+        $stmt = $conn->prepare("UPDATE users SET fullname = ?, photo = ? WHERE id = ?");
+        $stmt->bind_param("ssi", $fullname, $photo_name, $user_id);
     } else {
-        $error = "❌ Failed to update profile.";
+        $stmt = $conn->prepare("UPDATE users SET fullname = ? WHERE id = ?");
+        $stmt->bind_param("si", $fullname, $user_id);
     }
 
+    $stmt->execute();
     $stmt->close();
 }
 
 // Handle password change
+$password_error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
-    $current = $_POST['current_password'];
-    $new = $_POST['new_password'];
-    $confirm = $_POST['confirm_password'];
+    $old_password = $_POST['old_password'];
+    $new_password = $_POST['new_password'];
 
-    if ($new !== $confirm) {
-        $password_error = "❌ New passwords do not match.";
-    } else {
-        // Get current hashed password
-        $sql = "SELECT password FROM users WHERE id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("i", $user_id);
+    $stmt = $conn->prepare("SELECT password FROM users WHERE id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $stmt->bind_result($current_hashed_password);
+    $stmt->fetch();
+    $stmt->close();
+
+    if (password_verify($old_password, $current_hashed_password)) {
+        $new_hashed = password_hash($new_password, PASSWORD_DEFAULT);
+        $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+        $stmt->bind_param("si", $new_hashed, $user_id);
         $stmt->execute();
-        $stmt->bind_result($hashed);
-        $stmt->fetch();
         $stmt->close();
-
-        if (!password_verify($current, $hashed)) {
-            $password_error = "❌ Current password is incorrect.";
-        } else {
-            $new_hashed = password_hash($new, PASSWORD_DEFAULT);
-            $sql = "UPDATE users SET password = ? WHERE id = ?";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("si", $new_hashed, $user_id);
-
-            if ($stmt->execute()) {
-                $password_success = "✅ Password changed successfully!";
-            } else {
-                $password_error = "❌ Failed to update password.";
-            }
-
-            $stmt->close();
-        }
+    } else {
+        $password_error = 'Old password is incorrect.';
     }
 }
+
+// Fetch user data
+$stmt = $conn->prepare("SELECT fullname, email, photo FROM users WHERE id = ?");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$stmt->bind_result($fullname, $email, $photo);
+$stmt->fetch();
+$stmt->close();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Update Profile - TUPT OrderGo</title>
-  <style>
+<meta charset="UTF-8">
+<title>Update Profile</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
     body {
-      background: #f4f4f4;
-      font-family: 'Segoe UI', sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
+        font-family: 'Poppins', sans-serif;
+        background: #f4f4f4;
+        padding: 40px 20px;
     }
-
-    .back-button {
-      position: fixed;
-      top: 20px;
-      left: 20px;
+    .container {
+        max-width: 500px;
+        margin: auto;
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        position: relative;
     }
-
-    .back-button button {
-      padding: 10px 16px;
-      background-color: #e67e22;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
+    .back-btn {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        text-decoration: none;
+        color: #0984e3;
+        font-size: 13px;
+        font-weight: 500;
+        background: #eaf4fb;
+        padding: 6px 12px;
+        border-radius: 8px;
+        transition: background 0.3s;
     }
-
-    .back-button button:hover {
-      background-color: #d35400;
+    .back-btn:hover {
+        background: #d6ecf8;
     }
-
-    .profile-box {
-      background: #fff;
-      padding: 30px 40px;
-      border-radius: 20px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 360px;
-      overflow-y: auto;
-      max-height: 90vh;
-    }
-
     h2 {
-      text-align: center;
-      color: #d35400;
-      margin-bottom: 25px;
+        text-align: center;
+        margin-bottom: 25px;
+        color: #00b894;
     }
-
-    label {
-      font-weight: 600;
-      margin-top: 10px;
-      display: block;
-    }
-
     input[type="text"],
     input[type="email"],
+    input[type="file"],
     input[type="password"] {
-      width: 100%;
-      padding: 10px;
-      border-radius: 10px;
-      border: 2px solid #f39c12;
-      margin-bottom: 15px;
-      font-size: 16px;
+        width: 100%;
+        padding: 10px;
+        margin: 8px 0 16px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
     }
-
-    button[type="submit"] {
-      width: 100%;
-      padding: 12px;
-      background: #e67e22;
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 10px;
+    input[readonly] {
+        background-color: #eee;
+        color: #555;
     }
-
-    button[type="submit"]:hover {
-      background: #d35400;
+    button {
+        width: 100%;
+        background-color: #00b894;
+        color: white;
+        padding: 10px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background 0.3s;
     }
-
-    .message {
-      text-align: center;
-      margin-bottom: 15px;
-      font-weight: bold;
+    button:hover {
+        background-color: #019875;
     }
-
-    .success {
-      color: green;
+    .section {
+        margin-bottom: 30px;
     }
-
+    .profile-photo {
+        display: block;
+        margin: 0 auto 15px;
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 3px solid #007bff;
+    }
     .error {
-      color: red;
+        color: red;
+        margin-bottom: 15px;
+        text-align: center;
     }
-
-    hr {
-      margin: 20px 0;
-      border: 0;
-      border-top: 1px solid #ccc;
-    }
-  </style>
+</style>
 </head>
 <body>
 
-  <!-- Back Button -->
-  <div class="back-button">
-    <form action="../customer/dashboard.php" method="get">
-      <button type="submit">← Back</button>
-    </form>
-  </div>
-
-  <div class="profile-box">
+<div class="container">
+    <a href="dashboard.php" class="back-btn">← Back</a>
     <h2>Update Profile</h2>
 
-    <?php if ($success) echo "<p class='message success'>$success</p>"; ?>
-    <?php if ($error) echo "<p class='message error'>$error</p>"; ?>
+    <form method="POST" enctype="multipart/form-data" class="section">
+        <?php if ($photo): ?>
+            <div style="text-align:center;">
+                <img src="../images/<?= htmlspecialchars($photo) ?>" alt="Profile Photo" class="profile-photo">
+            </div>
+        <?php endif; ?>
 
-    <form method="POST" action="">
-      <input type="hidden" name="update_profile" value="1">
-      <label for="fullname">Full Name:</label>
-      <input type="text" name="fullname" id="fullname" value="<?= htmlspecialchars($fullname) ?>" required>
+        <label>Full Name:</label>
+        <input type="text" name="fullname" value="<?= htmlspecialchars($fullname) ?>" required>
 
-      <label for="email">Email:</label>
-      <input type="email" name="email" id="email" value="<?= htmlspecialchars($email) ?>" required>
+        <label>Email:</label>
+        <input type="email" value="<?= htmlspecialchars($email) ?>" readonly>
 
-      <button type="submit">Update Profile</button>
+        <label>Change Photo:</label>
+        <input type="file" name="photo">
+
+        <button type="submit" name="update_profile">Update Profile</button>
     </form>
 
-    <hr>
+    <form method="POST" class="section">
+        <?php if ($password_error): ?>
+            <div class="error"><?= $password_error ?></div>
+        <?php endif; ?>
+        <label>Old Password:</label>
+        <input type="password" name="old_password" required>
 
-    <h2>Change Password</h2>
+        <label>New Password:</label>
+        <input type="password" name="new_password" required>
 
-    <?php if ($password_success) echo "<p class='message success'>$password_success</p>"; ?>
-    <?php if ($password_error) echo "<p class='message error'>$password_error</p>"; ?>
-
-    <form method="POST" action="">
-      <input type="hidden" name="change_password" value="1">
-      <label for="current_password">Current Password:</label>
-      <input type="password" name="current_password" id="current_password" required>
-
-      <label for="new_password">New Password:</label>
-      <input type="password" name="new_password" id="new_password" required>
-
-      <label for="confirm_password">Confirm New Password:</label>
-      <input type="password" name="confirm_password" id="confirm_password" required>
-
-      <button type="submit">Change Password</button>
+        <button type="submit" name="change_password">Change Password</button>
     </form>
-  </div>
+</div>
+
 </body>
 </html>

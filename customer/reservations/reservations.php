@@ -71,8 +71,7 @@ $stalls_result = $conn->query($stall_sql);
     <label for="message">Message (optional):</label>
     <input type="text" name="message" id="message">
 
-    <label for="table_number">Table Number:</label>
-    <input type="text" name="table_number" id="table_number" required>
+    <!-- Removed Table Number field -->
 
     <label for="date">Reservation Date:</label>
     <input type="date" name="date" id="date" required>

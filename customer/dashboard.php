@@ -7,7 +7,19 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     header("Location: ../login.php");
     exit;
 }
+
 $fullname = $_SESSION['fullname'];
+$customer_id = $_SESSION['user_id'];
+
+// Fetch cart count from cart_items table
+$cart_count = 0;
+$cart_stmt = $conn->prepare("SELECT SUM(quantity) as total FROM cart_items WHERE user_id = ?");
+$cart_stmt->bind_param("i", $customer_id);
+$cart_stmt->execute();
+$cart_result = $cart_stmt->get_result();
+if ($row = $cart_result->fetch_assoc()) {
+    $cart_count = $row['total'] ?? 0;
+}
 ?>
 
 <!DOCTYPE html>
@@ -41,6 +53,24 @@ $fullname = $_SESSION['fullname'];
         .hamburger {
             font-size: 26px;
             cursor: pointer;
+        }
+
+        .cart-icon {
+            color: white;
+            text-decoration: none;
+            position: relative;
+            font-size: 18px;
+        }
+
+        .cart-count {
+            position: absolute;
+            top: -8px;
+            right: -12px;
+            background: red;
+            color: white;
+            font-size: 12px;
+            border-radius: 50%;
+            padding: 2px 6px;
         }
 
         .sidebar {
@@ -159,6 +189,14 @@ $fullname = $_SESSION['fullname'];
 <div class="navbar">
     <div class="hamburger" onclick="toggleSidebar()">&#9776;</div>
     <div>Welcome, <?php echo htmlspecialchars($fullname); ?>!</div>
+    <div>
+        <a href="cart.php" class="cart-icon">
+            🛒 Cart
+            <?php if ($cart_count > 0): ?>
+                <span class="cart-count"><?php echo $cart_count; ?></span>
+            <?php endif; ?>
+        </a>
+    </div>
 </div>
 
 <div class="sidebar" id="sidebar">
@@ -184,14 +222,14 @@ $fullname = $_SESSION['fullname'];
         <?php
         $search = isset($_GET['search']) ? trim($_GET['search']) : '';
         if ($search !== '') {
-            $sql = "SELECT * FROM users WHERE role = 'vendor' AND (fullname LIKE ? OR id LIKE ?) ORDER BY id ASC";
+            $sql = "SELECT * FROM users WHERE role = 'vendor' AND status = 'active' AND (fullname LIKE ? OR id LIKE ?) ORDER BY id ASC";
             $stmt = $conn->prepare($sql);
             $searchParam = '%' . $search . '%';
             $stmt->bind_param("ss", $searchParam, $searchParam);
             $stmt->execute();
             $result = $stmt->get_result();
         } else {
-            $sql = "SELECT * FROM users WHERE role = 'vendor' ORDER BY id ASC";
+            $sql = "SELECT * FROM users WHERE role = 'vendor' AND status = 'active' ORDER BY id ASC";
             $result = $conn->query($sql);
         }
 

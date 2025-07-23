@@ -15,21 +15,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
     $product_id = intval($_POST['product_id']);
     $quantity = max(1, intval($_POST['quantity']));
 
-    // Check if item already in cart
     $check_stmt = $conn->prepare("SELECT id, quantity FROM cart_items WHERE user_id = ? AND product_id = ?");
     $check_stmt->bind_param("ii", $user_id, $product_id);
     $check_stmt->execute();
     $check_result = $check_stmt->get_result();
 
     if ($check_result && $check_result->num_rows > 0) {
-        // If already in cart, update quantity
         $row = $check_result->fetch_assoc();
         $new_quantity = $row['quantity'] + $quantity;
         $update_stmt = $conn->prepare("UPDATE cart_items SET quantity = ? WHERE id = ?");
         $update_stmt->bind_param("ii", $new_quantity, $row['id']);
         $update_stmt->execute();
     } else {
-        // If not, insert new cart item
         $insert_stmt = $conn->prepare("INSERT INTO cart_items (user_id, product_id, quantity) VALUES (?, ?, ?)");
         $insert_stmt->bind_param("iii", $user_id, $product_id, $quantity);
         $insert_stmt->execute();
@@ -72,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
 
 // ✅ 3. Fetch cart items for this user
 $cart_sql = $conn->prepare("
-    SELECT ci.id AS cart_id, ci.quantity, p.name, p.price, p.image_url
+    SELECT ci.id AS cart_id, ci.quantity, p.id AS product_id, p.name, p.price, p.image_url
     FROM cart_items ci
     JOIN products p ON ci.product_id = p.id
     WHERE ci.user_id = ?
@@ -185,12 +182,28 @@ $cart_items = $cart_sql->get_result();
             margin-top: 30px;
             color: #2c3e50;
         }
+        .order-btn {
+            text-align: right;
+            margin-top: 20px;
+        }
+        .order-btn button {
+            background: #f39c12;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .order-btn button:hover {
+            background: #e67e22;
+        }
     </style>
 </head>
 <body>
 
 <div class="cart-container">
-    <a href="stall_view.php" class="back-btn">← Back</a>
+    <a href="dashboard.php" class="back-btn">← Back</a>
     <h1>Your Cart</h1>
 
     <?php
@@ -236,6 +249,16 @@ $cart_items = $cart_sql->get_result();
                 </div>
             </div>";
         }
+
+        // Order now button
+        echo "
+        <div class='order-btn'>
+        <form method='GET' action='cart_checkout.php'>
+            <button type='submit' name='cart_checkout'>Order Now</button>
+        </form>
+
+        </div>
+        ";
 
         echo "<div class='total'>Total: ₱" . number_format($grand_total, 2) . "</div>";
     } else {

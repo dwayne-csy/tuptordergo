@@ -9,17 +9,30 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'vendor') {
 
 $fullname = $_SESSION['fullname'] ?? 'Vendor';
 $vendor_id = $_SESSION['user_id'];
-$stall_name = $_SESSION['stall_name'] ?? 'Unknown Stall';
 
-// Insert new announcement
+// Insert new announcement and generate customer notifications
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['title']) && !empty($_POST['content'])) {
     $title = trim($_POST['title']);
-    $content = trim($_POST['content']); // this will go to `message` column
+    $content = trim($_POST['content']); // for message column in announcements
 
-    $stmt = $conn->prepare("INSERT INTO announcements (vendor_id, stall_name, title, message, date_posted) VALUES (?, ?, ?, ?, NOW())");
-    $stmt->bind_param("isss", $vendor_id, $stall_name, $title, $content);
+    // Insert into announcements table
+    $stmt = $conn->prepare("INSERT INTO announcements (vendor_id, title, message, date_posted) VALUES (?, ?, ?, NOW())");
+    $stmt->bind_param("iss", $vendor_id, $title, $content);
     $stmt->execute();
     $stmt->close();
+
+    // Fetch all customers
+    $customer_result = $conn->query("SELECT id FROM users WHERE role = 'customer'");
+    if ($customer_result && $customer_result->num_rows > 0) {
+        $notif_stmt = $conn->prepare("INSERT INTO notifications (customer_id, vendor_id, message, created_at) VALUES (?, ?, ?, NOW())");
+        while ($row = $customer_result->fetch_assoc()) {
+            $customer_id = $row['id'];
+            $notif_msg = "$title - $content";
+            $notif_stmt->bind_param("iis", $customer_id, $vendor_id, $notif_msg);
+            $notif_stmt->execute();
+        }
+        $notif_stmt->close();
+    }
 }
 
 // Fetch announcements for this vendor
@@ -30,6 +43,7 @@ $result = $stmt->get_result();
 $announcements = $result->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
